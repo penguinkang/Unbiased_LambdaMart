@@ -1,9 +1,15 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_UTILS_ARRAY_AGRS_H_
 #define LIGHTGBM_UTILS_ARRAY_AGRS_H_
 
-#include <vector>
-#include <algorithm>
 #include <LightGBM/utils/openmp_wrapper.h>
+
+#include <algorithm>
+#include <utility>
+#include <vector>
 
 namespace LightGBM {
 
@@ -12,7 +18,7 @@ namespace LightGBM {
 */
 template<typename VAL_T>
 class ArrayArgs {
-public:
+ public:
   inline static size_t ArgMaxMT(const std::vector<VAL_T>& array) {
     int num_threads = 1;
 #pragma omp parallel
@@ -22,7 +28,7 @@ public:
     }
     int step = std::max(1, (static_cast<int>(array.size()) + num_threads - 1) / num_threads);
     std::vector<size_t> arg_maxs(num_threads, 0);
-    #pragma omp parallel for schedule(static,1)
+    #pragma omp parallel for schedule(static, 1)
     for (int i = 0; i < num_threads; ++i) {
       size_t start = step * i;
       if (start >= array.size()) { continue; }
@@ -124,7 +130,7 @@ public:
     for (int k = end - 2; k >= q; k--, i++) { std::swap(ref[i], ref[k]); }
     *l = j;
     *r = i;
-  };
+  }
 
   // Note: k refer to index here. e.g. k=0 means get the max number.
   inline static int ArgMaxAtK(std::vector<VAL_T>* arr, int start, int end, int k) {
@@ -176,6 +182,14 @@ public:
     return true;
   }
 
+  inline static bool CheckAll(const std::vector<VAL_T>& array, VAL_T t) {
+    for (size_t i = 0; i < array.size(); ++i) {
+      if (array[i] != t) {
+        return false;
+      }
+    }
+    return true;
+  }
 };
 
 }  // namespace LightGBM

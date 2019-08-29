@@ -1,14 +1,20 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_BIN_H_
 #define LIGHTGBM_BIN_H_
 
-#include <LightGBM/utils/common.h>
-
 #include <LightGBM/meta.h>
+#include <LightGBM/utils/common.h>
+#include <LightGBM/utils/file_io.h>
 
-#include <vector>
+#include <limits>
+#include <string>
 #include <functional>
-#include <unordered_map>
 #include <sstream>
+#include <unordered_map>
+#include <vector>
 
 namespace LightGBM {
 
@@ -25,7 +31,7 @@ enum MissingType {
 
 /*! \brief Store data for one histogram bin */
 struct HistogramBinEntry {
-public:
+ public:
   /*! \brief Sum of gradients on this bin */
   double sum_gradients = 0.0f;
   /*! \brief Sum of hessians on this bin */
@@ -57,7 +63,7 @@ public:
 /*! \brief This class used to convert feature values into bin,
 *          and store some meta information for bin*/
 class BinMapper {
-public:
+ public:
   BinMapper();
   BinMapper(const BinMapper& other);
   explicit BinMapper(const void* memory);
@@ -90,8 +96,8 @@ public:
   inline int num_bin() const { return num_bin_; }
   /*! \brief Missing Type */
   inline MissingType missing_type() const { return missing_type_; }
-  /*! \brief True if bin is trival (contains only one bin) */
-  inline bool is_trival() const { return is_trival_; }
+  /*! \brief True if bin is trivial (contains only one bin) */
+  inline bool is_trivial() const { return is_trivial_; }
   /*! \brief Sparsity of this bin ( num_zero_bins / num_data ) */
   inline double sparse_rate() const { return sparse_rate_; }
   /*!
@@ -141,7 +147,7 @@ public:
   * \param use_missing True to enable missing value handle
   * \param zero_as_missing True to use zero as missing value
   */
-  void FindBin(double* values, int num_values, size_t total_sample_cnt, int max_bin, int min_data_in_bin, int min_split_data, BinType bin_type, 
+  void FindBin(double* values, int num_values, size_t total_sample_cnt, int max_bin, int min_data_in_bin, int min_split_data, BinType bin_type,
                bool use_missing, bool zero_as_missing);
 
   /*!
@@ -182,14 +188,14 @@ public:
     }
   }
 
-private:
+ private:
   /*! \brief Number of bins */
   int num_bin_;
   MissingType missing_type_;
   /*! \brief Store upper bound for each bin */
   std::vector<double> bin_upper_bound_;
-  /*! \brief True if this feature is trival */
-  bool is_trival_;
+  /*! \brief True if this feature is trivial */
+  bool is_trivial_;
   /*! \brief Sparse rate of this bins( num_bin0/num_data ) */
   double sparse_rate_;
   /*! \brief Type of this bin */
@@ -215,7 +221,7 @@ private:
 *        So we only using ordered bin for sparse situations.
 */
 class OrderedBin {
-public:
+ public:
   /*! \brief virtual destructor */
   virtual ~OrderedBin() {}
 
@@ -263,7 +269,7 @@ public:
 
 /*! \brief Iterator for one bin column */
 class BinIterator {
-public:
+ public:
   /*!
   * \brief Get bin data on specific row index
   * \param idx Index of this data
@@ -282,7 +288,7 @@ public:
 *        but it doesn't need to re-order operation, So it will be faster than OrderedBin for dense feature
 */
 class Bin {
-public:
+ public:
   /*! \brief virtual destructor */
   virtual ~Bin() {}
   /*!
@@ -382,7 +388,7 @@ public:
   * \param gt_indices After called this function. The greater data indices will store on this object.
   * \return The number of less than or equal data.
   */
-  virtual data_size_t Split(uint32_t min_bin, uint32_t max_bin, 
+  virtual data_size_t Split(uint32_t min_bin, uint32_t max_bin,
     uint32_t default_bin, MissingType missing_type, bool default_left, uint32_t threshold,
     data_size_t* data_indices, data_size_t num_data,
     data_size_t* lte_indices, data_size_t* gt_indices) const = 0;
@@ -445,6 +451,11 @@ public:
   * \return The bin data object
   */
   static Bin* CreateSparseBin(data_size_t num_data, int num_bin);
+
+  /*!
+  * \brief Deep copy the bin
+  */
+  virtual Bin* Clone() = 0;
 };
 
 inline uint32_t BinMapper::ValueToBin(double value) const {

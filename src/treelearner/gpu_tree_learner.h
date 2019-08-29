@@ -1,22 +1,28 @@
+/*!
+ * Copyright (c) 2017 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_TREELEARNER_GPU_TREE_LEARNER_H_
 #define LIGHTGBM_TREELEARNER_GPU_TREE_LEARNER_H_
 
-#include <LightGBM/utils/random.h>
-#include <LightGBM/utils/array_args.h>
 #include <LightGBM/dataset.h>
-#include <LightGBM/tree.h>
 #include <LightGBM/feature_group.h>
-#include "feature_histogram.hpp"
-#include "serial_tree_learner.h"
-#include "data_partition.hpp"
-#include "split_info.hpp"
-#include "leaf_splits.hpp"
+#include <LightGBM/tree.h>
+#include <LightGBM/utils/array_args.h>
+#include <LightGBM/utils/random.h>
 
-#include <cstdio>
-#include <vector>
-#include <random>
+#include <string>
 #include <cmath>
+#include <cstdio>
 #include <memory>
+#include <random>
+#include <vector>
+
+#include "data_partition.hpp"
+#include "feature_histogram.hpp"
+#include "leaf_splits.hpp"
+#include "serial_tree_learner.h"
+#include "split_info.hpp"
 
 #ifdef USE_GPU
 
@@ -36,8 +42,8 @@ namespace LightGBM {
 * \brief GPU-based parallel learning algorithm.
 */
 class GPUTreeLearner: public SerialTreeLearner {
-public:
-  explicit GPUTreeLearner(const TreeConfig* tree_config);
+ public:
+  explicit GPUTreeLearner(const Config* tree_config);
   ~GPUTreeLearner();
   void Init(const Dataset* train_data, bool is_constant_hessian) override;
   void ResetTrainingData(const Dataset* train_data) override;
@@ -57,18 +63,19 @@ public:
     use_bagging_ = false;
   }
 
-protected:
+ protected:
   void BeforeTrain() override;
   bool BeforeFindBestSplit(const Tree* tree, int left_leaf, int right_leaf) override;
   void FindBestSplits() override;
   void Split(Tree* tree, int best_Leaf, int* left_leaf, int* right_leaf) override;
   void ConstructHistograms(const std::vector<int8_t>& is_feature_used, bool use_subtract) override;
-private:
+
+ private:
   /*! \brief 4-byte feature tuple used by GPU kernels */
   struct Feature4 {
       uint8_t s[4];
   };
-  
+
   /*! \brief Single precision histogram entiry for GPU */
   struct GPUHistogramBinEntry {
     score_t sum_gradients;
@@ -82,7 +89,7 @@ private:
   * \return Log2 of the best number for workgroups per feature, in range 0...kMaxLogWorkgroupsPerFeature
   */
   int GetNumWorkgroupsPerFeature(data_size_t leaf_num_data);
-  
+
   /*!
   * \brief Initialize GPU device, context and command queues
   *        Also compiles the OpenCL kernel
@@ -100,7 +107,7 @@ private:
   * \brief Compile OpenCL GPU source code to kernel binaries
   */
   void BuildGPUKernels();
-  
+
   /*!
    * \brief Returns OpenCL kernel build log when compiled with option opts
    * \param opts OpenCL build options 
@@ -120,7 +127,7 @@ private:
    * \param use_all_features Set to true to not use feature masks, with a faster kernel
   */
   void GPUHistogram(data_size_t leaf_num_data, bool use_all_features);
-  
+
   /*!
    * \brief Wait for GPU kernel execution and read histogram
    * \param histograms Destination of histogram results from GPU.
@@ -151,7 +158,7 @@ private:
 
 
   /*! brief Log2 of max number of workgroups per feature*/
-  const int kMaxLogWorkgroupsPerFeature = 10; // 2^10
+  const int kMaxLogWorkgroupsPerFeature = 10;  // 2^10
   /*! brief Max total number of workgroups with preallocated workspace.
    *        If we use more than this number of workgroups, we have to reallocate subhistograms */
   int preallocd_max_num_wg_ = 1024;
@@ -166,15 +173,15 @@ private:
   /*! \brief GPU command queue object */
   boost::compute::command_queue queue_;
   /*! \brief GPU kernel for 256 bins */
-  const char *kernel256_src_ = 
+  const char *kernel256_src_ =
   #include "ocl/histogram256.cl"
   ;
   /*! \brief GPU kernel for 64 bins */
-  const char *kernel64_src_ = 
+  const char *kernel64_src_ =
   #include "ocl/histogram64.cl"
   ;
   /*! \brief GPU kernel for 16 bins */
-  const char *kernel16_src_ = 
+  const char *kernel16_src_ =
   #include "ocl/histogram16.cl"
   ;
   /*! \brief Currently used kernel source */
@@ -266,16 +273,17 @@ private:
 // When GPU support is not compiled in, quit with an error message
 
 namespace LightGBM {
-    
+
 class GPUTreeLearner: public SerialTreeLearner {
-public:
+ public:
   #pragma warning(disable : 4702)
-  explicit GPUTreeLearner(const TreeConfig* tree_config) : SerialTreeLearner(tree_config) {
-    Log::Fatal("GPU Tree Learner was not enabled in this build. Recompile with CMake option -DUSE_GPU=1");
+  explicit GPUTreeLearner(const Config* tree_config) : SerialTreeLearner(tree_config) {
+    Log::Fatal("GPU Tree Learner was not enabled in this build.\n"
+               "Please recompile with CMake option -DUSE_GPU=1");
   }
 };
 
-}
+}  // namespace LightGBM
 
 #endif   // USE_GPU
 

@@ -5,7 +5,7 @@ library(data.table)
 library(lightgbm)
 
 # Load data and look at the structure
-# 
+#
 # Classes 'data.table' and 'data.frame':	4521 obs. of  17 variables:
 # $ age      : int  30 33 35 30 59 35 36 39 41 43 ...
 # $ job      : chr  "unemployed" "services" "management" "management" ...
@@ -34,7 +34,7 @@ bank_test <- bank[4001:4521, ]
 # We must now transform the data to fit in LightGBM
 # For this task, we use lgb.prepare
 # The function transforms the data into a fittable data
-# 
+#
 # Classes 'data.table' and 'data.frame':	521 obs. of  17 variables:
 # $ age      : int  53 36 58 26 34 55 55 34 41 38 ...
 # $ job      : num  1 10 10 9 10 2 2 3 3 4 ...
@@ -69,9 +69,11 @@ my_data_test <- as.matrix(bank_test[, 1:16, with = FALSE])
 # Creating the LightGBM dataset with categorical features
 # The categorical features can be passed to lgb.train to not copy and paste a lot
 dtrain <- lgb.Dataset(data = my_data_train,
-                      label = bank_train$y)
-dtest <- lgb.Dataset(data = my_data_test,
-                     label = bank_test$y)
+                      label = bank_train$y,
+                      categorical_feature = c(2, 3, 4, 5, 7, 8, 9, 11, 16))
+dtest <- lgb.Dataset.create.valid(dtrain,
+                                  data = my_data_test,
+                                  label = bank_test$y)
 
 # We can now train a model
 model <- lgb.train(list(objective = "binary",
@@ -80,8 +82,7 @@ model <- lgb.train(list(objective = "binary",
                         learning_rate = 0.1,
                         min_data = 0,
                         min_hessian = 1,
-                        max_depth = 2,
-                        categorical_feature = c(2, 3, 4, 5, 7, 8, 9, 11, 16)),
+                        max_depth = 2),
                    dtrain,
                    100,
                    valids = list(train = dtrain, valid = dtest))

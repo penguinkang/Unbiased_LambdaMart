@@ -57,7 +57,7 @@ Now we are ready to checkout LightGBM and compile it with GPU support:
 
 ::
 
-    git clone --recursive https://github.com/Microsoft/LightGBM
+    git clone --recursive https://github.com/microsoft/LightGBM
     cd LightGBM
     mkdir build ; cd build
     cmake -DUSE_GPU=1 .. 
@@ -85,7 +85,7 @@ If you want to use the Python interface of LightGBM, you can install it now (alo
 
 You need to set an additional parameter ``"device" : "gpu"`` (along with your other options like ``learning_rate``, ``num_leaves``, etc) to use GPU in Python.
 
-You can read our `Python Package Examples`_ for more information on how to use the Python interface.
+You can read our `Python-package Examples`_ for more information on how to use the Python interface.
 
 Dataset Preparation
 -------------------
@@ -188,13 +188,13 @@ Reference
 
 Please kindly cite the following article in your publications if you find the GPU acceleration useful:
 
-Huan Zhang, Si Si and Cho-Jui Hsieh. "`GPU Acceleration for Large-scale Tree Boosting`_." arXiv:1706.08359, 2017.
+Huan Zhang, Si Si and Cho-Jui Hsieh. "`GPU Acceleration for Large-scale Tree Boosting`_." SysML Conference, 2018.
 
 .. _Microsoft Azure cloud computing platform: https://azure.microsoft.com/
 
-.. _AMDGPU-Pro: http://support.amd.com/en-us/download/linux
+.. _AMDGPU-Pro: https://www.amd.com/en/support
 
-.. _Python Package Examples: https://github.com/Microsoft/LightGBM/tree/master/examples/python-guide
+.. _Python-package Examples: https://github.com/microsoft/LightGBM/tree/master/examples/python-guide
 
 .. _GPU Acceleration for Large-scale Tree Boosting: https://arxiv.org/abs/1706.08359
 

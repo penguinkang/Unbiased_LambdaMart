@@ -1,9 +1,14 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifdef USE_MPI
+
 #include "linkers.h"
 
 namespace LightGBM {
 
-Linkers::Linkers(NetworkConfig) {
+Linkers::Linkers(Config) {
   is_init_ = false;
   int argc = 0;
   char**argv = nullptr;
@@ -29,5 +34,4 @@ Linkers::~Linkers() {
 
 
 }  // namespace LightGBM
-#endif // USE_MPI
-
+#endif  // USE_MPI

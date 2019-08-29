@@ -1,18 +1,21 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_NETWORK_LINKERS_H_
 #define LIGHTGBM_NETWORK_LINKERS_H_
 
-
-#include <LightGBM/meta.h>
 #include <LightGBM/config.h>
+#include <LightGBM/meta.h>
 #include <LightGBM/network.h>
 
+#include <string>
 #include <algorithm>
 #include <chrono>
 #include <ctime>
+#include <memory>
 #include <thread>
 #include <vector>
-#include <string>
-#include <memory>
 
 #ifdef USE_SOCKET
 #include "socket_wrapper.hpp"
@@ -32,7 +35,7 @@ namespace LightGBM {
 * This class will wrap all linkers to other machines if needs
 */
 class Linkers {
-public:
+ public:
   Linkers() {
     is_init_ = false;
   }
@@ -40,7 +43,7 @@ public:
   * \brief Constructor
   * \param config Config of network settings
   */
-  explicit Linkers(NetworkConfig config);
+  explicit Linkers(Config config);
   /*!
   * \brief Destructor
   */
@@ -136,7 +139,7 @@ public:
   #endif  // USE_SOCKET
 
 
-private:
+ private:
   /*! \brief Rank of local machine */
   int rank_;
   /*! \brief Total number machines */
@@ -222,9 +225,8 @@ inline void Linkers::Recv(int rank, char* data, int len) const {
   int recv_cnt = 0;
   while (recv_cnt < len) {
     recv_cnt += linkers_[rank]->Recv(data + recv_cnt,
-      //len - recv_cnt
-      std::min(len - recv_cnt, SocketConfig::kMaxReceiveSize)
-    );
+      // len - recv_cnt
+      std::min(len - recv_cnt, SocketConfig::kMaxReceiveSize));
   }
 }
 

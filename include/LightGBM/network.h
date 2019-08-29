@@ -1,14 +1,17 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_NETWORK_H_
 #define LIGHTGBM_NETWORK_H_
 
+#include <LightGBM/config.h>
+#include <LightGBM/meta.h>
 #include <LightGBM/utils/log.h>
 
-#include <LightGBM/meta.h>
-#include <LightGBM/config.h>
-
 #include <functional>
-#include <vector>
 #include <memory>
+#include <vector>
 
 namespace LightGBM {
 
@@ -17,7 +20,7 @@ class Linkers;
 
 /*! \brief The network structure for all_gather */
 class BruckMap {
-public:
+ public:
   /*! \brief The communication times for one all gather operation */
   int k;
   /*! \brief in_ranks[i] means the incomming rank on i-th communication */
@@ -51,7 +54,7 @@ enum RecursiveHalvingNodeType {
 
 /*! \brief Network structure for recursive halving algorithm */
 class RecursiveHalvingMap {
-public:
+ public:
   /*! \brief Communication times for one recursize halving algorithm  */
   int k;
   /*! \brief Node type */
@@ -84,12 +87,12 @@ public:
 
 /*! \brief A static class that contains some collective communication algorithm */
 class Network {
-public:
+ public:
   /*!
   * \brief Initialize
   * \param config Config of network setting
   */
-  static void Init(NetworkConfig config);
+  static void Init(Config config);
   /*!
   * \brief Initialize
   */
@@ -234,7 +237,7 @@ public:
 
   template<class T>
   static void GlobalSum(std::vector<T>& local) {
-    std::vector<T> global;
+    std::vector<T> global(local.size(), 0);
     Allreduce(reinterpret_cast<char*>(local.data()),
               static_cast<comm_size_t>(sizeof(T) * local.size()), sizeof(T),
               reinterpret_cast<char*>(global.data()),
@@ -256,8 +259,7 @@ public:
     }
   }
 
-private:
-
+ private:
   static void AllgatherBruck(char* input, const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t all_size);
 
   static void AllgatherRecursiveDoubling(char* input, const comm_size_t* block_start, const comm_size_t* block_len, char* output, comm_size_t all_size);

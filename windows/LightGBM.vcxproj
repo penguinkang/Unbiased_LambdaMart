@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="Projectconfigurations">
     <ProjectConfiguration Include="Debug_mpi|x64">
@@ -257,6 +257,7 @@
     <ClCompile Include="..\src\c_api.cpp" />
     <ClCompile Include="..\src\io\bin.cpp" />
     <ClCompile Include="..\src\io\config.cpp" />
+    <ClCompile Include="..\src\io\config_auto.cpp" />
     <ClCompile Include="..\src\io\dataset.cpp" />
     <ClCompile Include="..\src\io\dataset_loader.cpp" />
     <ClCompile Include="..\src\io\file_io.cpp" />

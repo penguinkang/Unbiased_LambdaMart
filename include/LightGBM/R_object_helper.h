@@ -1,12 +1,18 @@
-/*
-* A simple wrapper for accessing data in R object.
-* Due to license issue, we cannot include R's header file, so use this simple wrapper instead.
-* However, if R changes the way it defines objects, this file will need to be updated as well.
-*/
+/*!
+ * Copyright (c) 2017 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ *
+ * \brief A simple wrapper for accessing data in R object.
+ *
+ * \note
+ * Due to license issue, we cannot include R's header file, so use this simple wrapper instead.
+ * However, if R changes the way it defines objects, this file will need to be updated as well.
+ */
 #ifndef R_OBJECT_HELPER_H_
 #define R_OBJECT_HELPER_H_
 
 #include <cstdint>
+#include <cstdio>
 
 #define TYPE_BITS 5
 // use .Internal(internalsID()) to uuid
@@ -33,7 +39,7 @@ struct lgbm_sxpinfo {
 
 // 64bit pointer
 #if INTPTR_MAX == INT64_MAX
-typedef ptrdiff_t R_xlen_t;
+typedef int64_t R_xlen_t;
 #else
 typedef int R_xlen_t;
 #endif
@@ -123,9 +129,13 @@ typedef union { VECTOR_SER s; double align; } SEXPREC_ALIGN;
 
 #define R_INT_PTR(x)  ((int *) DATAPTR(x))
 
+#define R_INT64_PTR(x)  ((int64_t *) DATAPTR(x))
+
 #define R_REAL_PTR(x)     ((double *) DATAPTR(x))
 
 #define R_AS_INT(x) (*((int *) DATAPTR(x)))
+
+#define R_AS_INT64(x) (*((int64_t *) DATAPTR(x)))
 
 #define R_IS_NULL(x) ((*(LGBM_SE)(x)).sxpinfo.type == 0)
 
@@ -180,4 +190,4 @@ inline void* R_GET_PTR(LGBM_SE x) {
 
 #endif
 
-#endif // R_OBJECT_HELPER_H_
+#endif  // R_OBJECT_HELPER_H_

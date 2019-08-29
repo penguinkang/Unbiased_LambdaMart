@@ -1,10 +1,15 @@
+/*!
+ * Copyright (c) 2017 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #include <LightGBM/prediction_early_stop.h>
+
 #include <LightGBM/utils/log.h>
 
-#include <algorithm>
-#include <vector>
-#include <cmath>
 #include <limits>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
 namespace {
 
@@ -15,7 +20,7 @@ PredictionEarlyStopInstance CreateNone(const PredictionEarlyStopConfig&) {
     [](const double*, int) {
     return false;
   },
-    std::numeric_limits<int>::max() // make sure the lambda is almost never called
+    std::numeric_limits<int>::max()  // make sure the lambda is almost never called
   };
 }
 
@@ -69,7 +74,7 @@ PredictionEarlyStopInstance CreateBinary(const PredictionEarlyStopConfig& config
   };
 }
 
-}
+}  // namespace
 
 namespace LightGBM {
 
@@ -86,4 +91,4 @@ PredictionEarlyStopInstance CreatePredictionEarlyStopInstance(const std::string&
   }
 }
 
-}
+}  // namespace LightGBM

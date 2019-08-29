@@ -9,7 +9,7 @@ lgb.model.dt.tree(model, num_iteration = NULL)
 \arguments{
 \item{model}{object of class \code{lgb.Booster}}
 
-\item{num_iteration}{number of iterations you want to predict with. NULL or 
+\item{num_iteration}{number of iterations you want to predict with. NULL or
 <= 0 means use best iteration}
 }
 \value{
@@ -26,7 +26,7 @@ The columns of the \code{data.table} are:
  \item \code{leaf_index}: ID of a leaf in a tree (integer)
  \item \code{leaf_parent}: ID of the parent node for current leaf (integer)
  \item \code{split_gain}: Split gain of a node
- \item \code{threshold}: Spliting threshold value of a node
+ \item \code{threshold}: Splitting threshold value of a node
  \item \code{decision_type}: Decision type of a node
  \item \code{default_left}: Determine how to handle NA value, TRUE -> Left, FALSE -> Right
  \item \code{internal_value}: Node value
@@ -39,20 +39,17 @@ The columns of the \code{data.table} are:
 Parse a LightGBM model json dump into a \code{data.table} structure.
 }
 \examples{
-\dontrun{
-library(lightgbm)
 
 data(agaricus.train, package = "lightgbm")
 train <- agaricus.train
 dtrain <- lgb.Dataset(train$data, label = train$label)
 
-params = list(objective = "binary",
+params <- list(objective = "binary",
               learning_rate = 0.01, num_leaves = 63, max_depth = -1,
               min_data_in_leaf = 1, min_sum_hessian_in_leaf = 1)
               model <- lgb.train(params, dtrain, 20)
 model <- lgb.train(params, dtrain, 20)
 
 tree_dt <- lgb.model.dt.tree(model)
-}
 
 }

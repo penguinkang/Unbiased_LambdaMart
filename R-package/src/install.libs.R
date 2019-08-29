@@ -10,52 +10,58 @@ if (.Machine$sizeof.pointer != 8){
 R_int_UUID <- .Internal(internalsID())
 R_ver <- as.double(R.Version()$major) + as.double(R.Version()$minor)/10
 
-if (!(R_int_UUID == "0310d4b8-ccb1-4bb8-ba94-d36a55f60262" 
+if (!(R_int_UUID == "0310d4b8-ccb1-4bb8-ba94-d36a55f60262"
     || R_int_UUID == "2fdf6c18-697a-4ba7-b8ef-11c0d92f1327")){
-  print("Warning: unmatched R_INTERNALS_UUID, may cannot run normally.")   
+  print("Warning: unmatched R_INTERNALS_UUID, may cannot run normally.")
 }
+
+# Move in CMakeLists.txt
+if (!file.copy("../inst/bin/CMakeLists.txt", "CMakeLists.txt", overwrite = TRUE)){
+  stop("Copying CMakeLists failed")
+}
+
 # Check for precompilation
 if (!use_precompile) {
 
   # Check repository content
   source_dir <- file.path(R_PACKAGE_SOURCE, "src", fsep = "/")
   setwd(source_dir)
-  
-  if (!file.exists("_IS_FULL_PACKAGE")) {
-    unlink("./include", recursive = TRUE)
-    unlink("./src", recursive = TRUE)
-    unlink("./compute", recursive = TRUE)
-    unlink("./build", recursive = TRUE)
-    if (!file.copy("./../../include", "./", overwrite = TRUE, recursive = TRUE)) {
-      stop("Cannot find folder LightGBM/include")
-    }
-    if (!file.copy("./../../src", "./", overwrite = TRUE, recursive = TRUE)) {
-      stop("Cannot find folder LightGBM/src")
-    }
-    if (!file.copy("./../../compute", "./", overwrite = TRUE, recursive = TRUE)) {
-      print("Cannot find folder LightGBM/compute, disabling GPU build.")
-      use_gpu <- FALSE
-    }
-    if (!file.copy("./../../CMakeLists.txt", "./", overwrite = TRUE, recursive = TRUE)) {
-      stop("Cannot find file LightGBM/CMakeLists.txt")
-    }
-  }
-  
+
   # Prepare building package
   build_dir <- file.path(source_dir, "build", fsep = "/")
   dir.create(build_dir, recursive = TRUE, showWarnings = FALSE)
   setwd(build_dir)
-  
+
   # Prepare installation steps
   cmake_cmd <- "cmake "
   build_cmd <- "make _lightgbm"
   lib_folder <- file.path(R_PACKAGE_SOURCE, "src", fsep = "/")
-  
+
   if (use_gpu) {
     cmake_cmd <- paste0(cmake_cmd, " -DUSE_GPU=ON ")
   }
   if (R_ver >= 3.5) {
     cmake_cmd <- paste0(cmake_cmd, " -DUSE_R35=ON ")
+  }
+
+  # Could NOT find OpenMP_C on Mojave workaround
+  # Using this kind-of complicated pattern to avoid matching to
+  # things like "pgcc"
+  using_gcc <- grepl(
+    pattern = '^gcc$|[/\\]+gcc$|^gcc\\-[0-9]+$|[/\\]+gcc\\-[0-9]+$'
+    , x = Sys.getenv('CC', '')
+  )
+  using_gpp <- grepl(
+    pattern = '^g\\+\\+$|[/\\]+g\\+\\+$|^g\\+\\+\\-[0-9]+$|[/\\]+g\\+\\+\\-[0-9]+$'
+    , x = Sys.getenv('CXX', '')
+  )
+  on_mac <- Sys.info()['sysname'] == 'Darwin'
+  if (on_mac && !(using_gcc & using_gpp)) {
+    cmake_cmd <- paste(cmake_cmd, ' -DOpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include" ')
+    cmake_cmd <- paste(cmake_cmd, ' -DOpenMP_C_LIB_NAMES="omp" ')
+    cmake_cmd <- paste(cmake_cmd, ' -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include" ')
+    cmake_cmd <- paste(cmake_cmd, ' -DOpenMP_CXX_LIB_NAMES="omp" ')
+    cmake_cmd <- paste(cmake_cmd, ' -DOpenMP_omp_LIBRARY="$(brew --prefix libomp)/lib/libomp.dylib" ')
   }
 
   # Check if Windows installation (for gcc vs Visual Studio)
@@ -67,9 +73,9 @@ if (!use_precompile) {
     } else {
       try_vs <- 0
       local_vs_def <- ""
-      vs_versions <- c("Visual Studio 15 2017 Win64", "Visual Studio 14 2015 Win64")
+      vs_versions <- c("Visual Studio 16 2019", "Visual Studio 15 2017", "Visual Studio 14 2015")
       for(vs in vs_versions){
-        vs_def <- paste0(" -G \"", vs, "\"")
+        vs_def <- paste0(" -G \"", vs, "\" -A x64")
         tmp_cmake_cmd <- paste0(cmake_cmd, vs_def)
         try_vs <- system(paste0(tmp_cmake_cmd, " .."))
         if (try_vs == 0) {
@@ -90,12 +96,12 @@ if (!use_precompile) {
       }
     }
   }
-  
+
   # Install
   system(paste0(cmake_cmd, " .."))
   system(build_cmd)
   src <- file.path(lib_folder, paste0("lib_lightgbm", SHLIB_EXT), fsep = "/")
-  
+
 } else {
 
   # Has precompiled package
@@ -103,11 +109,11 @@ if (!use_precompile) {
   if (file.exists(file.path(lib_folder, paste0("lib_lightgbm", SHLIB_EXT), fsep = "/"))) {
     src <- file.path(lib_folder, paste0("lib_lightgbm", SHLIB_EXT), fsep = "/")
   } else if (file.exists(file.path(lib_folder, paste0("Release/lib_lightgbm", SHLIB_EXT), fsep = "/"))) {
-    src <- file.path(lib_folder, paste0("Release/lib_lightgbm", SHLIB_EXT), fsep = "/") 
+    src <- file.path(lib_folder, paste0("Release/lib_lightgbm", SHLIB_EXT), fsep = "/")
   } else {
     src <- file.path(lib_folder, paste0("/windows/x64/DLL/lib_lightgbm", SHLIB_EXT), fsep = "/") # Expected result: installation will fail if it is not here or any other
   }
-  
+
 }
 
 # Check installation correctness

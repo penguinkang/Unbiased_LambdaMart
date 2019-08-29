@@ -1,3 +1,24 @@
+/* Copyright (c) 2013 Dropbox, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 /* json11
  *
  * json11 is a tiny JSON library for C++11, providing JSON parsing and serialization.
@@ -26,47 +47,14 @@
  * or long long to avoid the Y2038K problem; a double storing microseconds since some epoch
  * will be exact for +/- 275 years.)
  */
-
-/* Copyright (c) 2013 Dropbox, Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
 #pragma once
 
 #include <string>
-#include <vector>
+#include <initializer_list>
 #include <map>
 #include <memory>
-#include <initializer_list>
-
-#ifdef _MSC_VER
-    #if _MSC_VER <= 1800 // VS 2013
-        #ifndef noexcept
-            #define noexcept throw()
-        #endif
-
-        #ifndef snprintf
-            #define snprintf _snprintf_s
-        #endif
-    #endif
-#endif
+#include <utility>
+#include <vector>
 
 namespace json11 {
 
@@ -77,7 +65,7 @@ enum JsonParse {
 class JsonValue;
 
 class Json final {
-public:
+ public:
     // Types
     enum Type {
         NUL, NUMBER, BOOL, STRING, ARRAY, OBJECT
@@ -88,18 +76,18 @@ public:
     typedef std::map<std::string, Json> object;
 
     // Constructors for the various types of JSON value.
-    Json() noexcept;                // NUL
-    Json(std::nullptr_t) noexcept;  // NUL
-    Json(double value);             // NUMBER
-    Json(int value);                // NUMBER
-    Json(bool value);               // BOOL
-    Json(const std::string &value); // STRING
-    Json(std::string &&value);      // STRING
-    Json(const char * value);       // STRING
-    Json(const array &values);      // ARRAY
-    Json(array &&values);           // ARRAY
-    Json(const object &values);     // OBJECT
-    Json(object &&values);          // OBJECT
+    Json() noexcept;                 // NUL
+    Json(std::nullptr_t) noexcept;   // NUL
+    Json(double value);              // NUMBER
+    Json(int value);                 // NUMBER
+    Json(bool value);                // BOOL
+    Json(const std::string &value);  // STRING
+    Json(std::string &&value);       // STRING
+    Json(const char * value);        // STRING
+    Json(const array &values);       // ARRAY
+    Json(array &&values);            // ARRAY
+    Json(const object &values);      // OBJECT
+    Json(object &&values);           // OBJECT
 
     // Implicit constructor: anything with a to_json() function.
     template <class T, class = decltype(&T::to_json)>
@@ -204,13 +192,13 @@ public:
     typedef std::initializer_list<std::pair<std::string, Type>> shape;
     bool has_shape(const shape & types, std::string & err) const;
 
-private:
+ private:
     std::shared_ptr<JsonValue> m_ptr;
 };
 
 // Internal class hierarchy - JsonValue objects are not exposed to users of this API.
 class JsonValue {
-protected:
+ protected:
     friend class Json;
     friend class JsonInt;
     friend class JsonDouble;
@@ -229,4 +217,4 @@ protected:
     virtual ~JsonValue() {}
 };
 
-} // namespace json11
+}  // namespace json11

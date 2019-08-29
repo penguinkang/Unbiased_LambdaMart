@@ -1,14 +1,18 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_IO_ORDERED_SPARSE_BIN_HPP_
 #define LIGHTGBM_IO_ORDERED_SPARSE_BIN_HPP_
 
 #include <LightGBM/bin.h>
 
-#include <cstring>
-#include <cstdint>
-
-#include <vector>
-#include <mutex>
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
+#include <mutex>
+#include <utility>
+#include <vector>
 
 #include "sparse_bin.hpp"
 
@@ -24,7 +28,7 @@ namespace LightGBM {
 */
 template <typename VAL_T>
 class OrderedSparseBin: public OrderedBin {
-public:
+ public:
   /*! \brief Pair to store one bin entry */
   struct SparsePair {
     data_size_t ridx;  // data(row) index
@@ -87,7 +91,6 @@ public:
     data_size_t i = start;
     // use data on current leaf to construct histogram
     for (; i < end - rest; i += 4) {
-
       const VAL_T bin0 = ordered_pair_[i].bin;
       const VAL_T bin1 = ordered_pair_[i + 1].bin;
       const VAL_T bin2 = ordered_pair_[i + 2].bin;
@@ -119,7 +122,6 @@ public:
     }
 
     for (; i < end; ++i) {
-
       const VAL_T bin0 = ordered_pair_[i].bin;
 
       const auto g0 = gradient[ordered_pair_[i].ridx];
@@ -129,7 +131,6 @@ public:
       out[bin0].sum_hessians += h0;
       ++out[bin0].cnt;
     }
-
   }
 
   void ConstructHistogram(int leaf, const score_t* gradient,
@@ -141,7 +142,6 @@ public:
     data_size_t i = start;
     // use data on current leaf to construct histogram
     for (; i < end - rest; i += 4) {
-
       const VAL_T bin0 = ordered_pair_[i].bin;
       const VAL_T bin1 = ordered_pair_[i + 1].bin;
       const VAL_T bin2 = ordered_pair_[i + 2].bin;
@@ -196,7 +196,7 @@ public:
   /*! \brief Disable copy */
   OrderedSparseBin<VAL_T>(const OrderedSparseBin<VAL_T>&) = delete;
 
-private:
+ private:
   const SparseBin<VAL_T>* bin_data_;
   /*! \brief Store non-zero pair , group by leaf */
   std::vector<SparsePair> ordered_pair_;

@@ -1,20 +1,25 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_DATASET_H_
 #define LIGHTGBM_DATASET_H_
 
-#include <LightGBM/utils/random.h>
-#include <LightGBM/utils/text_reader.h>
-#include <LightGBM/utils/openmp_wrapper.h>
-
-#include <LightGBM/meta.h>
 #include <LightGBM/config.h>
 #include <LightGBM/feature_group.h>
+#include <LightGBM/meta.h>
+#include <LightGBM/utils/common.h>
+#include <LightGBM/utils/openmp_wrapper.h>
+#include <LightGBM/utils/random.h>
+#include <LightGBM/utils/text_reader.h>
 
-#include <vector>
-#include <utility>
-#include <functional>
 #include <string>
-#include <unordered_set>
+#include <functional>
+#include <memory>
 #include <mutex>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 namespace LightGBM {
 
@@ -34,7 +39,7 @@ class DatasetLoader;
 *        5. Initial score. optional. if exsitng, the model will boost from this score, otherwise will start from 0.
 */
 class Metadata {
-public:
+ public:
   /*!
   * \brief Null costructor
   */
@@ -117,8 +122,7 @@ public:
   * \param idx Index of this record
   * \param value Label value of this record
   */
-  inline void SetLabelAt(data_size_t idx, label_t value)
-  {
+  inline void SetLabelAt(data_size_t idx, label_t value) {
     label_[idx] = value;
   }
 
@@ -127,8 +131,7 @@ public:
   * \param idx Index of this record
   * \param value Weight value of this record
   */
-  inline void SetWeightAt(data_size_t idx, label_t value)
-  {
+  inline void SetWeightAt(data_size_t idx, label_t value) {
     weights_[idx] = value;
   }
 
@@ -137,8 +140,7 @@ public:
   * \param idx Index of this record
   * \param value Query Id value of this record
   */
-  inline void SetQueryAt(data_size_t idx, data_size_t value)
-  {
+  inline void SetQueryAt(data_size_t idx, data_size_t value) {
     queries_[idx] = static_cast<data_size_t>(value);
   }
 
@@ -221,7 +223,7 @@ public:
   /*! \brief Disable copy */
   Metadata(const Metadata&) = delete;
 
-private:
+ private:
   /*! \brief Load initial scores from file */
   void LoadInitialScore(const char* initscore_file);
   /*! \brief Load weights from file */
@@ -269,8 +271,7 @@ private:
 
 /*! \brief Interface for Parser */
 class Parser {
-public:
-
+ public:
   /*! \brief virtual destructor */
   virtual ~Parser() {}
 
@@ -292,14 +293,14 @@ public:
   * \param label_idx index of label column
   * \return Object of parser
   */
-  static Parser* CreateParser(const char* filename, bool has_header, int num_features, int label_idx);
+  static Parser* CreateParser(const char* filename, bool header, int num_features, int label_idx);
 };
 
 /*! \brief The main class of data set,
 *          which are used to traning or validation
 */
 class Dataset {
-public:
+ public:
   friend DatasetLoader;
 
   LIGHTGBM_EXPORT Dataset();
@@ -311,7 +312,7 @@ public:
     int** sample_non_zero_indices,
     const int* num_per_col,
     size_t total_sample_cnt,
-    const IOConfig& io_config);
+    const Config& io_config);
 
   /*! \brief Destructor */
   LIGHTGBM_EXPORT ~Dataset();
@@ -409,10 +410,14 @@ public:
 
   LIGHTGBM_EXPORT bool GetIntField(const char* field_name, data_size_t* out_len, const int** out_ptr);
 
+  LIGHTGBM_EXPORT bool GetInt8Field(const char* field_name, data_size_t* out_len, const int8_t** out_ptr);
+
   /*!
   * \brief Save current dataset into binary file, will save to "filename.bin"
   */
   LIGHTGBM_EXPORT void SaveBinaryFile(const char* bin_filename);
+
+  LIGHTGBM_EXPORT void DumpTextFile(const char* text_filename);
 
   LIGHTGBM_EXPORT void CopyFeatureMapperFrom(const Dataset* dataset);
 
@@ -462,6 +467,14 @@ public:
     }
   }
 
+  inline double FeaturePenalte(int i) const {
+    if (feature_penalty_.empty()) {
+      return 1;
+    } else {
+      return feature_penalty_[i];
+    }
+  }
+
   bool HasMonotone() const {
     if (monotone_types_.empty()) {
       return false;
@@ -474,7 +487,7 @@ public:
       return false;
     }
   }
-  
+
   inline int FeatureGroupNumBin(int group) const {
     return feature_groups_[group]->num_total_bin_;
   }
@@ -489,7 +502,7 @@ public:
     const int group = feature2group_[i];
     return feature_groups_[group]->bin_data_.get();
   }
-  
+
   inline const Bin* FeatureGroupBin(int group) const {
     return feature_groups_[group]->bin_data_.get();
   }
@@ -507,7 +520,7 @@ public:
   inline BinIterator* FeatureGroupIterator(int group) const {
     return feature_groups_[group]->FeatureGroupIterator();
   }
-  
+
   inline double RealThreshold(int i, uint32_t threshold) const {
     const int group = feature2group_[i];
     const int sub_feature = feature2subfeature_[i];
@@ -561,13 +574,17 @@ public:
     feature_names_ = std::vector<std::string>(feature_names);
     // replace ' ' in feature_names with '_'
     bool spaceInFeatureName = false;
-    for (auto& feature_name: feature_names_){
-      if (feature_name.find(' ') != std::string::npos){
+    for (auto& feature_name : feature_names_) {
+      // check ascii
+      if (!Common::CheckASCII(feature_name)) {
+        Log::Fatal("Do not support non-ascii characters in feature name.");
+      }
+      if (feature_name.find(' ') != std::string::npos) {
         spaceInFeatureName = true;
         std::replace(feature_name.begin(), feature_name.end(), ' ', '_');
       }
     }
-    if (spaceInFeatureName){
+    if (spaceInFeatureName) {
       Log::Warning("Find whitespaces in feature_names, replace with underlines");
     }
   }
@@ -586,6 +603,8 @@ public:
     return bufs;
   }
 
+  void ResetConfig(const char* parameters);
+
   /*! \brief Get Number of data */
   inline data_size_t num_data() const { return num_data_; }
 
@@ -594,7 +613,9 @@ public:
   /*! \brief Disable copy */
   Dataset(const Dataset&) = delete;
 
-private:
+  void addFeaturesFrom(Dataset* other);
+
+ private:
   std::string data_filename_;
   /*! \brief Store used features */
   std::vector<std::unique_ptr<FeatureGroup>> feature_groups_;
@@ -624,7 +645,14 @@ private:
   std::vector<int> group_feature_start_;
   std::vector<int> group_feature_cnt_;
   std::vector<int8_t> monotone_types_;
+  std::vector<double> feature_penalty_;
   bool is_finish_load_;
+  int max_bin_;
+  std::vector<int32_t> max_bin_by_feature_;
+  int bin_construct_sample_cnt_;
+  int min_data_in_bin_;
+  bool use_missing_;
+  bool zero_as_missing_;
 };
 
 }  // namespace LightGBM

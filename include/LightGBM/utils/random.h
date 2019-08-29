@@ -1,11 +1,14 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_UTILS_RANDOM_H_
 #define LIGHTGBM_UTILS_RANDOM_H_
 
 #include <cstdint>
-
 #include <random>
-#include <vector>
 #include <set>
+#include <vector>
 
 namespace LightGBM {
 
@@ -13,7 +16,7 @@ namespace LightGBM {
 * \brief A wrapper for random generator
 */
 class Random {
-public:
+ public:
   /*!
   * \brief Constructor, with random seed
   */
@@ -93,7 +96,8 @@ public:
     }
     return ret;
   }
-private:
+
+ private:
   inline int RandInt16() {
     x = (214013 * x + 2531011);
     return static_cast<int>((x >> 16) & 0x7FFF);

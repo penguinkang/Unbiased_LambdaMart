@@ -1,16 +1,20 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_OBJECTIVE_RANK_OBJECTIVE_HPP_
 #define LIGHTGBM_OBJECTIVE_RANK_OBJECTIVE_HPP_
 
-#include <LightGBM/objective_function.h>
 #include <LightGBM/metric.h>
+#include <LightGBM/objective_function.h>
 
+#include <limits>
+#include <string>
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <cmath>
-
 #include <vector>
-#include <algorithm>
-#include <limits>
 
 #include <iomanip>
 
@@ -19,16 +23,14 @@ namespace LightGBM {
 * \brief Objective function for Lambdrank with NDCG
 */
 class LambdarankNDCG: public ObjectiveFunction {
-public:
-  explicit LambdarankNDCG(const ObjectiveConfig& config) {
-    sigmoid_ = static_cast<double>(config.sigmoid); /// 1.0
+ public:
+  explicit LambdarankNDCG(const Config& config) {
+    sigmoid_ = static_cast<double>(config.sigmoid);
+    norm_ = config.lambdamart_norm;
+    label_gain_ = config.label_gain;
     // initialize DCG calculator
-    DCGCalculator::Init(config.label_gain);
-    // copy lable gain to local
-    for (auto gain : config.label_gain) {
-      label_gain_.push_back(static_cast<double>(gain));
-    }
-    label_gain_.shrink_to_fit();
+    DCGCalculator::DefaultLabelGain(&label_gain_);
+    DCGCalculator::Init(label_gain_);
     // will optimize NDCG@optimize_pos_at_
     optimize_pos_at_ = config.max_position;
     sigmoid_table_.clear();
@@ -48,11 +50,9 @@ public:
   }
 
   explicit LambdarankNDCG(const std::vector<std::string>&) {
-
   }
 
   ~LambdarankNDCG() {
-
   }
   void Init(const Metadata& metadata, data_size_t num_data) override {
     num_data_ = num_data;
@@ -141,15 +141,16 @@ public:
     for (data_size_t i = 0; i < cnt; ++i) {
       sorted_idx.emplace_back(i);
     }
-    std::sort(sorted_idx.begin(), sorted_idx.end(),
-             [score](data_size_t a, data_size_t b) { return score[a] > score[b]; });
-    // get best and worst score
+    std::stable_sort(sorted_idx.begin(), sorted_idx.end(),
+                     [score](data_size_t a, data_size_t b) { return score[a] > score[b]; });
+    // get best and worst score	
     const double best_score = score[sorted_idx[0]];
     data_size_t worst_idx = cnt - 1;
     if (worst_idx > 0 && score[sorted_idx[worst_idx]] == kMinScore) {
       worst_idx -= 1;
     }
-    const double wrost_score = score[sorted_idx[worst_idx]];
+    const double worst_score = score[sorted_idx[worst_idx]];
+    double sum_lambdas = 0.0;
     // start accmulate lambdas by pairs
     for (data_size_t i = 0; i < cnt; ++i) {
       const data_size_t high = sorted_idx[i];
@@ -184,29 +185,32 @@ public:
         const double paired_discount = fabs(high_discount - low_discount); /// |1/log2(2+i) - 1/log2(2+j)|
         // get delta NDCG
         double delta_pair_NDCG = dcg_gap * paired_discount * inverse_max_dcg; /// |deltaNDCG|
-
-        // regular the delta_pair_NDCG by score distance
-        if (high_label != low_label && best_score != wrost_score) {
+        // regular the delta_pair_NDCG by score distance	
+        if (norm_ && high_label != low_label && best_score != worst_score) {
           delta_pair_NDCG /= (0.01f + fabs(delta_score));
         }
         // calculate lambda for this pair
         double p_lambda = GetSigmoid(delta_score); /// sigma / (1 + e^(sigma*(si-sj)))
-        double p_hessian = p_lambda * (2.0f - p_lambda); /// sigma=2
-        double p_cost = log(2.0f / (2.0f - p_lambda)) * delta_pair_NDCG; /// log(1+e^(-sigma*(si-sj)))
+        double p_hessian = p_lambda * (1.0f - p_lambda); /// sigma=1
+        double p_cost = log(1.0f / (1.0f - p_lambda)) * delta_pair_NDCG; /// log(1+e^(-sigma*(si-sj)))
         // update
+        // p_lambda *= -sigmoid_ * delta_pair_NDCG;
+        // p_hessian *= sigmoid_ * sigmoid_ * delta_pair_NDCG;
         p_lambda *= -delta_pair_NDCG / i_biases_pow_[high_rank] / j_biases_pow_[low_rank]; /// -|deltaNDCG|*sigma/(1 + e^(sigma*(si-sj)))/bias, 梯度而不是负梯度
         p_hessian *= 2 * delta_pair_NDCG / i_biases_pow_[high_rank] / j_biases_pow_[low_rank]; ///
         double p_cost_i = p_cost / j_biases_pow_[low_rank]; ///
         double p_cost_j = p_cost / i_biases_pow_[high_rank]; ///
 	
-	high_sum_cost_i += p_cost_i;
-	j_costs_buffer_[tid][low_rank] += p_cost_j;
+        high_sum_cost_i += p_cost_i;
+        j_costs_buffer_[tid][low_rank] += p_cost_j;
         position_cnts_buffer_[tid][high_rank] += 1LL; /// Only consider clicked pair to conduct normalization
         pair_num += 1; 
         high_sum_lambda += p_lambda; /// Add lambda to position i
         high_sum_hessian += p_hessian;
         lambdas[low] -= static_cast<score_t>(p_lambda);  /// Minus lambda for position j
         hessians[low] += static_cast<score_t>(p_hessian);
+        // lambda is negative, so use minus to accumulate
+        sum_lambdas -= 2 * p_lambda;
       }
       // update
       lambdas[high] += static_cast<score_t>(high_sum_lambda); /// accumulate lambda gradient
@@ -220,6 +224,21 @@ public:
       const int rank = static_cast<int>(std::min(ranks_[start + i], _position_bins - 1));
       position_scores_buffer_[tid][rank] += score[i];
       position_lambdas_buffer_[tid][rank] += lambdas[i];
+    }
+
+    if (norm_ && sum_lambdas > 0) {
+      double norm_factor = std::log2(1 + sum_lambdas) / sum_lambdas;
+      for (data_size_t i = 0; i < cnt; ++i) {
+        lambdas[i] = static_cast<score_t>(lambdas[i] * norm_factor);
+        hessians[i] = static_cast<score_t>(hessians[i] * norm_factor);
+      }
+    }
+    // if need weights
+    if (weights_ != nullptr) {
+      for (data_size_t i = 0; i < cnt; ++i) {
+        lambdas[i] = static_cast<score_t>(lambdas[i] * weights_[start + i]);
+        hessians[i] = static_cast<score_t>(hessians[i] * weights_[start + i]);
+      }
     }
   }
 
@@ -247,7 +266,7 @@ public:
     // cache
     for (size_t i = 0; i < _sigmoid_bins; ++i) {
       const double score = i / sigmoid_table_idx_factor_ + min_sigmoid_input_; /// [-25,25)
-      sigmoid_table_[i] = 2.0f / (1.0f + std::exp(2.0f * score * sigmoid_)); /// sigma/(1+e^(sigma*s)), sigma=2
+      sigmoid_table_[i] = 1.0f / (1.0f + std::exp(score * sigmoid_)); /// sigma/(1+e^(sigma*s)), sigma=1
     }
   }
 
@@ -367,13 +386,15 @@ public:
 
   bool NeedAccuratePrediction() const override { return false; }
 
-private:
+ private:
   /*! \brief Gains for labels */
   std::vector<double> label_gain_;
   /*! \brief Cache inverse max DCG, speed up calculation */
   std::vector<double> inverse_max_dcgs_;
   /*! \brief Simgoid param */
   double sigmoid_;
+  /*! \brief Normalize the lambdas or not */
+  bool norm_;
   /*! \brief Optimized NDCG@ */
   int optimize_pos_at_;
   /*! \brief Number of queries */

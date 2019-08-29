@@ -1,10 +1,17 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_OBJECTIVE_MULTICLASS_OBJECTIVE_HPP_
 #define LIGHTGBM_OBJECTIVE_MULTICLASS_OBJECTIVE_HPP_
 
 #include <LightGBM/objective_function.h>
 
-#include <cstring>
+#include <string>
+#include <algorithm>
 #include <cmath>
+#include <cstring>
+#include <memory>
 #include <vector>
 
 #include "binary_objective.hpp"
@@ -14,8 +21,8 @@ namespace LightGBM {
 * \brief Objective function for multiclass classification, use softmax as objective functions
 */
 class MulticlassSoftmax: public ObjectiveFunction {
-public:
-  explicit MulticlassSoftmax(const ObjectiveConfig& config) {
+ public:
+  explicit MulticlassSoftmax(const Config& config) {
     num_class_ = config.num_class;
   }
 
@@ -30,12 +37,11 @@ public:
       }
     }
     if (num_class_ < 0) {
-      Log::Fatal("Objective should contains num_class field");
+      Log::Fatal("Objective should contain num_class field");
     }
   }
 
   ~MulticlassSoftmax() {
-
   }
 
   void Init(const Metadata& metadata, data_size_t num_data) override {
@@ -43,11 +49,25 @@ public:
     label_ = metadata.label();
     weights_ = metadata.weights();
     label_int_.resize(num_data_);
+    class_init_probs_.resize(num_class_, 0.0);
+    double sum_weight = 0.0;
     for (int i = 0; i < num_data_; ++i) {
       label_int_[i] = static_cast<int>(label_[i]);
       if (label_int_[i] < 0 || label_int_[i] >= num_class_) {
         Log::Fatal("Label must be in [0, %d), but found %d in label", num_class_, label_int_[i]);
       }
+      if (weights_ == nullptr) {
+        class_init_probs_[label_int_[i]] += 1.0;
+      } else {
+        class_init_probs_[label_int_[i]] += weights_[i];
+        sum_weight += weights_[i];
+      }
+    }
+    if (weights_ == nullptr) {
+      sum_weight = num_data_;
+    }
+    for (int i = 0; i < num_class_; ++i) {
+      class_init_probs_[i] /= sum_weight;
     }
   }
 
@@ -120,7 +140,20 @@ public:
 
   bool NeedAccuratePrediction() const override { return false; }
 
-private:
+  double BoostFromScore(int class_id) const override {
+    return std::log(std::max<double>(kEpsilon, class_init_probs_[class_id]));
+  }
+
+  bool ClassNeedTrain(int class_id) const override {
+    if (std::fabs(class_init_probs_[class_id]) <= kEpsilon
+        || std::fabs(class_init_probs_[class_id]) >= 1.0 - kEpsilon) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+ private:
   /*! \brief Number of data */
   data_size_t num_data_;
   /*! \brief Number of classes */
@@ -131,14 +164,15 @@ private:
   std::vector<int> label_int_;
   /*! \brief Weights for data */
   const label_t* weights_;
+  std::vector<double> class_init_probs_;
 };
 
 /*!
 * \brief Objective function for multiclass classification, use one-vs-all binary objective function
 */
 class MulticlassOVA: public ObjectiveFunction {
-public:
-  explicit MulticlassOVA(const ObjectiveConfig& config) {
+ public:
+  explicit MulticlassOVA(const Config& config) {
     num_class_ = config.num_class;
     for (int i = 0; i < num_class_; ++i) {
       binary_loss_.emplace_back(
@@ -161,7 +195,7 @@ public:
       }
     }
     if (num_class_ < 0) {
-      Log::Fatal("Objective should contains num_class field");
+      Log::Fatal("Objective should contain num_class field");
     }
     if (sigmoid_ <= 0.0) {
       Log::Fatal("Sigmoid parameter %f should be greater than zero", sigmoid_);
@@ -169,7 +203,6 @@ public:
   }
 
   ~MulticlassOVA() {
-
   }
 
   void Init(const Metadata& metadata, data_size_t num_data) override {
@@ -212,7 +245,15 @@ public:
 
   bool NeedAccuratePrediction() const override { return false; }
 
-private:
+  double BoostFromScore(int class_id) const override {
+    return binary_loss_[class_id]->BoostFromScore(0);
+  }
+
+  bool ClassNeedTrain(int class_id) const override {
+    return binary_loss_[class_id]->ClassNeedTrain(0);
+  }
+
+ private:
   /*! \brief Number of data */
   data_size_t num_data_;
   /*! \brief Number of classes */

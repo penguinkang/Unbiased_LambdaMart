@@ -1,11 +1,15 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #ifndef LIGHTGBM_IO_DENSE_BIN_HPP_
 #define LIGHTGBM_IO_DENSE_BIN_HPP_
 
 #include <LightGBM/bin.h>
 
-#include <vector>
-#include <cstring>
 #include <cstdint>
+#include <cstring>
+#include <vector>
 
 namespace LightGBM {
 
@@ -14,7 +18,7 @@ class DenseBin;
 
 template <typename VAL_T>
 class DenseBinIterator: public BinIterator {
-public:
+ public:
   explicit DenseBinIterator(const DenseBin<VAL_T>* bin_data, uint32_t min_bin, uint32_t max_bin, uint32_t default_bin)
     : bin_data_(bin_data), min_bin_(static_cast<VAL_T>(min_bin)),
     max_bin_(static_cast<VAL_T>(max_bin)),
@@ -28,7 +32,8 @@ public:
   inline uint32_t RawGet(data_size_t idx) override;
   inline uint32_t Get(data_size_t idx) override;
   inline void Reset(data_size_t) override { }
-private:
+
+ private:
   const DenseBin<VAL_T>* bin_data_;
   VAL_T min_bin_;
   VAL_T max_bin_;
@@ -41,7 +46,7 @@ private:
 */
 template <typename VAL_T>
 class DenseBin: public Bin {
-public:
+ public:
   friend DenseBinIterator<VAL_T>;
   DenseBin(data_size_t num_data)
     : num_data_(num_data), data_(num_data_, static_cast<VAL_T>(0)) {
@@ -310,10 +315,20 @@ public:
     return sizeof(VAL_T) * num_data_;
   }
 
-protected:
+  DenseBin<VAL_T>* Clone() override;
+
+ private:
   data_size_t num_data_;
   std::vector<VAL_T> data_;
+
+  DenseBin<VAL_T>(const DenseBin<VAL_T>& other)
+    : num_data_(other.num_data_), data_(other.data_){}
 };
+
+template<typename VAL_T>
+DenseBin<VAL_T>* DenseBin<VAL_T>::Clone() {
+  return new DenseBin<VAL_T>(*this);
+}
 
 template <typename VAL_T>
 uint32_t DenseBinIterator<VAL_T>::Get(data_size_t idx) {

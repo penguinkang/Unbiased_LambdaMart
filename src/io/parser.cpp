@@ -1,8 +1,13 @@
+/*!
+ * Copyright (c) 2016 Microsoft Corporation. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for license information.
+ */
 #include "parser.hpp"
 
-#include <iostream>
+#include <string>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <memory>
 
 namespace LightGBM {
@@ -84,10 +89,10 @@ void getline(std::stringstream& ss, std::string& line, const VirtualFileReader* 
   }
 }
 
-Parser* Parser::CreateParser(const char* filename, bool has_header, int num_features, int label_idx) {
+Parser* Parser::CreateParser(const char* filename, bool header, int num_features, int label_idx) {
   auto reader = VirtualFileReader::Make(filename);
   if (!reader->Init()) {
-    Log::Fatal("Data file %s doesn't exist'", filename);
+    Log::Fatal("Data file %s doesn't exist", filename);
   }
   std::string line1, line2;
   size_t buffer_size = 64 * 1024;
@@ -98,7 +103,7 @@ Parser* Parser::CreateParser(const char* filename, bool has_header, int num_feat
   }
 
   std::stringstream tmp_file(std::string(buffer.data(), read_len));
-  if (has_header) {
+  if (header) {
     if (!tmp_file.eof()) {
       getline(tmp_file, line1, reader.get(), buffer, buffer_size);
     }
@@ -150,12 +155,10 @@ Parser* Parser::CreateParser(const char* filename, bool has_header, int num_feat
   if (type == DataType::LIBSVM) {
     label_idx = GetLabelIdxForLibsvm(line1, num_features, label_idx);
     ret.reset(new LibSVMParser(label_idx));
-  }
-  else if (type == DataType::TSV) {
+  } else if (type == DataType::TSV) {
     label_idx = GetLabelIdxForTSV(line1, num_features, label_idx);
     ret.reset(new TSVParser(label_idx, tab_cnt + 1));
-  }
-  else if (type == DataType::CSV) {
+  } else if (type == DataType::CSV) {
     label_idx = GetLabelIdxForCSV(line1, num_features, label_idx);
     ret.reset(new CSVParser(label_idx, comma_cnt + 1));
   }

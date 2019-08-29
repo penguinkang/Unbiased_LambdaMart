@@ -9,10 +9,12 @@ namespace LightGBM {
 
 Metadata::Metadata() {
   num_weights_ = 0;
+  num_ranks_ = 0; ///
   num_init_score_ = 0;
   num_data_ = 0;
   num_queries_ = 0;
   weight_load_from_file_ = false;
+  rank_load_from_file_ = false; ///
   query_load_from_file_ = false;
   init_score_load_from_file_ = false;
 }
@@ -22,7 +24,8 @@ void Metadata::Init(const char * data_filename, const char* initscore_file) {
   // for lambdarank, it needs query data for partition data in parallel learning
   LoadQueryBoundaries();
   LoadWeights();
-  LoadQueryWeights();
+  LoadRanks(); ///
+  // LoadQueryWeights(); /// queryweights只在评价指标上需要，模型训练过程中不需要
   LoadInitialScore(initscore_file);
 }
 
@@ -389,6 +392,28 @@ void Metadata::LoadWeights() {
   weight_load_from_file_ = true;
 }
 
+void Metadata::LoadRanks() { ///
+  num_ranks_ = 0;
+  std::string rank_filename(data_filename_);
+  // default rank file name
+  rank_filename.append(".rank");
+  TextReader<size_t> reader(rank_filename.c_str(), false);
+  reader.ReadAllLines();
+  if (reader.Lines().empty()) {
+    return;
+  }
+  Log::Info("Loading ranks...");
+  num_ranks_ = static_cast<data_size_t>(reader.Lines().size());
+  ranks_ = std::vector<size_t>(num_ranks_);
+#pragma omp parallel for schedule(static)
+  for (data_size_t i = 0; i < num_ranks_; ++i) {
+    int tmp_rank = 0;
+    Common::Atoi(reader.Lines()[i].c_str(), &tmp_rank);
+    ranks_[i] = static_cast<size_t>(tmp_rank);
+  }
+  rank_load_from_file_ = true;
+}
+
 void Metadata::LoadInitialScore(const char* initscore_file) {
   num_init_score_ = 0;
   std::string init_score_filename(initscore_file);
@@ -467,7 +492,7 @@ void Metadata::LoadQueryWeights() {
   for (data_size_t i = 0; i < num_queries_; ++i) {
     query_weights_[i] = 0.0f;
     for (data_size_t j = query_boundaries_[i]; j < query_boundaries_[i + 1]; ++j) {
-      query_weights_[i] += weights_[j];
+      query_weights_[i] += weights_[j]; 
     }
     query_weights_[i] /= (query_boundaries_[i + 1] - query_boundaries_[i]);
   }

@@ -155,6 +155,18 @@ public:
   }
 
   /*!
+  * \brief Get ranks, if not exists, will return nullptr
+  * \return Pointer of ranks
+  */
+  inline const size_t* ranks() const { ///
+    if (!ranks_.empty()) {
+      return ranks_.data();
+    } else {
+      return nullptr;
+    }
+  }
+
+  /*!
   * \brief Get data boundaries on queries, if not exists, will return nullptr
   *        we assume data will order by query,
   *        the interval of [query_boundaris[i], query_boundaris[i+1])
@@ -212,8 +224,10 @@ public:
 private:
   /*! \brief Load initial scores from file */
   void LoadInitialScore(const char* initscore_file);
-  /*! \brief Load wights from file */
+  /*! \brief Load weights from file */
   void LoadWeights();
+  /*! \brief Load ranks from file */
+  void LoadRanks(); ///
   /*! \brief Load query boundaries from file */
   void LoadQueryBoundaries();
   /*! \brief Load query wights */
@@ -224,10 +238,14 @@ private:
   data_size_t num_data_;
   /*! \brief Number of weights, used to check correct weight file */
   data_size_t num_weights_;
+  /*! \brief Number of ranks, used to check correct rank file */
+  data_size_t num_ranks_; ///
   /*! \brief Label data */
   std::vector<label_t> label_;
   /*! \brief Weights data */
   std::vector<label_t> weights_;
+  /*! \brief ranks data */
+  std::vector<size_t> ranks_; ///
   /*! \brief Query boundaries */
   std::vector<data_size_t> query_boundaries_;
   /*! \brief Query weights */
@@ -243,6 +261,7 @@ private:
   /*! \brief mutex for threading safe call */
   std::mutex mutex_;
   bool weight_load_from_file_;
+  bool rank_load_from_file_; ///
   bool query_load_from_file_;
   bool init_score_load_from_file_;
 };
